@@ -22,6 +22,8 @@ def load_model(config: RunConfig):
     else:
         stable_diffusion_version = "CompVis/stable-diffusion-v1-4"
     stable = AttendAndExcitePipeline.from_pretrained(stable_diffusion_version).to(device)
+    torch.set_float32_matmul_precision('high')
+    # stable.unet = torch.compile(stable.unet, mode="max-autotune")
     return stable
 
 

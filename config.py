@@ -42,3 +42,21 @@ class RunConfig:
 
     def __post_init__(self):
         self.output_path.mkdir(exist_ok=True, parents=True)
+
+
+@dataclass
+class LiftConfig(RunConfig):
+    # batch size to calculate the lift score
+    batch_size: int = 2
+    # whether noise is randomized for each t
+    same_noise: bool = False
+    # number of samples to calculate the lift score
+    n_samples: int = 200
+    # schedule of timesteps, interleave or random
+    t_schedule: str = "interleave"
+    # path to noise
+    noise_path: Path = Path('./noise.pt')
+    # prompts to calculate the lift score
+    prompts: List[str] = None
+    # Path to save the lift score
+    output_path: Path = Path('./outputs_lift')
