@@ -100,6 +100,11 @@ def main(config: LiftConfig):
     while seeds_to_process:
         seed = seeds_to_process.pop(0)
         print(f"Seed: {seed}")
+        # Skip if image already exists
+        if (config.output_path / config.prompt / f'{seed}.png').exists():
+            print(f"Image for seed {seed} already exists, skipping...")
+            continue
+
         g = torch.Generator('cuda').manual_seed(seed)
         controller = AttentionStore()
         image = run_on_prompt(prompt=config.prompt,
@@ -127,7 +132,7 @@ def main(config: LiftConfig):
                 "log_lift_results": log_lift_results,
                 "latents": latents,
                 "is_valid": is_valid,
-            }, prompt_output_path / f'{seed}_log_lift_results.pt')
+            }, prompt_output_path / f'{seed}_lift_results.pt')
 
             if not is_valid.all():
                 print(f"Seed {seed} is not valid")
@@ -138,9 +143,10 @@ def main(config: LiftConfig):
             image.save(prompt_output_path / f'{seed}.png')
             images.append(image)
 
-    # save a grid of results across all seeds
-    joined_image = vis_utils.get_image_grid(images)
-    joined_image.save(config.output_path / f'{config.prompt}.png')
+    if len(images) > 0:
+        # save a grid of results across all seeds
+        joined_image = vis_utils.get_image_grid(images)
+        joined_image.save(config.output_path / f'{config.prompt}.png')
 
 
 if __name__ == '__main__':
