@@ -37,7 +37,7 @@ for prompt, combination in zip(prompts, combination_types):
     elif combination == "objects":
         token_to_combine = "[3,7]"
     print([prompt.split()[idx-1] for idx in eval(token_to_combine)])
-    prompts = [s.strip() for s in prompt.split("and")]
+    prompts = [s.strip().replace("a ", "") for s in prompt.split("and")]
     prompts = '[' + ','.join([f'"{p}"' for p in prompts]) + ']'
     seeds=f"[{','.join([str(i) for i in range(args.num_seeds)])}]"
     command = f"python run.py --prompt \"{prompt}\" --seeds {seeds} --token_indices {token_to_combine} --prompts {prompts} {additional_args}"
@@ -46,4 +46,3 @@ for prompt, combination in zip(prompts, combination_types):
     if result != 0:
         print("Error")
         sys.exit(1)
-    break
