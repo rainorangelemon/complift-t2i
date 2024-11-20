@@ -1,4 +1,3 @@
-
 import inspect
 from typing import Any, Callable, Dict, List, Optional, Union, Tuple
 
@@ -12,7 +11,6 @@ from transformers import CLIPFeatureExtractor, CLIPTextModel, CLIPTokenizer
 from diffusers.configuration_utils import FrozenDict
 from diffusers.models import AutoencoderKL, UNet2DConditionModel
 from diffusers.schedulers import KarrasDiffusionSchedulers
-from diffusers.models.unet_2d_condition import UNet2DConditionModel
 from diffusers.utils import deprecate, is_accelerate_available, logging, replace_example_docstring
 from diffusers.pipelines.pipeline_utils import DiffusionPipeline
 from diffusers.pipelines.stable_diffusion import StableDiffusionPipelineOutput
@@ -375,6 +373,7 @@ class AttendAndExcitePipeline(StableDiffusionPipeline):
             sigma: float = 0.5,
             kernel_size: int = 3,
             sd_2_1: bool = False,
+            **kwargs,
     ):
         r"""
         Function invoked when calling the pipeline for generation.

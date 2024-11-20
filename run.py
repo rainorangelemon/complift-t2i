@@ -4,11 +4,16 @@ from typing import List
 import pyrallis
 import torch
 from PIL import Image
+from pathlib import Path
 
-from config import RunConfig
+from config import RunConfig, ModelConfigs, LiftConfig
 from pipeline_attend_and_excite import AttendAndExcitePipeline
+from pipeline_attend_and_excite_xl import AttendAndExcitePipelineXL
+from diffusers import StableDiffusionPipeline, StableDiffusionXLPipeline
 from utils import ptp_utils, vis_utils
 from utils.ptp_utils import AttentionStore
+from lift_callback import LiftCallback
+
 
 import warnings
 warnings.filterwarnings("ignore", category=UserWarning)
@@ -17,13 +22,20 @@ warnings.filterwarnings("ignore", category=UserWarning)
 def load_model(config: RunConfig):
     device = torch.device('cuda:0') if torch.cuda.is_available() else torch.device('cpu')
 
-    if config.sd_2_1:
-        stable_diffusion_version = "stabilityai/stable-diffusion-2-1-base"
-    else:
-        stable_diffusion_version = "CompVis/stable-diffusion-v1-4"
-    stable = AttendAndExcitePipeline.from_pretrained(stable_diffusion_version).to(device)
+    # Get model configuration
+    model_type, model_config = ModelConfigs().get_model_config(config.sd_2_1, config.sd_xl)
+    config.attention_res = model_config['attention_res']
+
+    # Initialize the appropriate pipeline
+    pipeline_class = (AttendAndExcitePipelineXL if config.sd_xl else AttendAndExcitePipeline) if not config.run_standard_sd \
+        else (StableDiffusionXLPipeline if config.sd_xl else StableDiffusionPipeline)
+
+    stable = pipeline_class.from_pretrained(
+        model_config['version'],
+        **model_config['params']
+    ).to(device)
+
     torch.set_float32_matmul_precision('high')
-    # stable.unet = torch.compile(stable.unet, mode="max-autotune")
     return stable
 
 
@@ -44,36 +56,49 @@ def run_on_prompt(prompt: List[str],
                   controller: AttentionStore,
                   token_indices: List[int],
                   seed: torch.Generator,
-                  config: RunConfig) -> Image.Image:
+                  config: RunConfig,
+                  callback: LiftCallback = None) -> Image.Image:
     if controller is not None:
         ptp_utils.register_attention_control(model, controller)
-    outputs = model(prompt=prompt,
-                    attention_store=controller,
-                    indices_to_alter=token_indices,
-                    attention_res=config.attention_res,
-                    guidance_scale=config.guidance_scale,
-                    generator=seed,
-                    num_inference_steps=config.n_inference_steps,
-                    max_iter_to_alter=config.max_iter_to_alter,
-                    run_standard_sd=config.run_standard_sd,
-                    thresholds=config.thresholds,
-                    scale_factor=config.scale_factor,
-                    scale_range=config.scale_range,
-                    smooth_attentions=config.smooth_attentions,
-                    sigma=config.sigma,
-                    kernel_size=config.kernel_size,
-                    sd_2_1=config.sd_2_1)
+    with torch.inference_mode(mode=config.run_standard_sd):
+        outputs = model(prompt=prompt,
+                        attention_store=controller,
+                        indices_to_alter=token_indices,
+                        attention_res=config.attention_res,
+                        guidance_scale=config.guidance_scale,
+                        generator=seed,
+                        num_inference_steps=config.n_inference_steps,
+                        max_iter_to_alter=config.max_iter_to_alter,
+                        run_standard_sd=config.run_standard_sd,
+                        thresholds=config.thresholds,
+                        scale_factor=config.scale_factor,
+                        scale_range=config.scale_range,
+                        smooth_attentions=config.smooth_attentions,
+                        sigma=config.sigma,
+                        kernel_size=config.kernel_size,
+                        normalize_eot=config.normalize_eot,
+                        sd_2_1=config.sd_2_1,
+                        callback=callback,
+                        callback_steps=config.callback_steps,
+                        )
     image = outputs.images[0]
     return image
 
 
 @pyrallis.wrap()
-def main(config: RunConfig):
+def main(config: LiftConfig):
+    if config.use_lift:
+        callback = LiftCallback(config)
+    else:
+        callback = None
+
     stable = load_model(config)
     token_indices = get_indices_to_alter(stable, config.prompt) if config.token_indices is None else config.token_indices
 
     images = []
-    for seed in config.seeds:
+    seeds_to_process = config.seeds.copy()
+    while seeds_to_process:
+        seed = seeds_to_process.pop(0)
         print(f"Seed: {seed}")
         g = torch.Generator('cuda').manual_seed(seed)
         controller = AttentionStore()
@@ -82,11 +107,36 @@ def main(config: RunConfig):
                               controller=controller,
                               token_indices=token_indices,
                               seed=g,
-                              config=config)
-        prompt_output_path = config.output_path / config.prompt
-        prompt_output_path.mkdir(exist_ok=True, parents=True)
-        image.save(prompt_output_path / f'{seed}.png')
-        images.append(image)
+                              config=config,
+                              callback=callback)
+
+        if config.use_lift:
+            log_lift_results, latents, is_valid = callback.calculate_lift(pipeline=stable,
+                                    prompts=config.prompts,
+                                    algebras=["product"]*len(config.prompts),
+                                    cross_attention_kwargs=None)
+
+            output_path_to_save = config.output_path
+            prompt_output_path = output_path_to_save / config.prompt
+            prompt_output_path.mkdir(exist_ok=True, parents=True)
+            image.save(prompt_output_path / f'{seed}.png')
+            images.append(image)
+
+            # save results
+            torch.save({
+                "log_lift_results": log_lift_results,
+                "latents": latents,
+                "is_valid": is_valid,
+            }, prompt_output_path / f'{seed}_log_lift_results.pt')
+
+            if not is_valid.all():
+                print(f"Seed {seed} is not valid")
+
+        else:
+            prompt_output_path = config.output_path / config.prompt
+            prompt_output_path.mkdir(exist_ok=True, parents=True)
+            image.save(prompt_output_path / f'{seed}.png')
+            images.append(image)
 
     # save a grid of results across all seeds
     joined_image = vis_utils.get_image_grid(images)
