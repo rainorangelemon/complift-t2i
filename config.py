@@ -36,7 +36,7 @@ class ModelConfigs:
 @dataclass
 class RunConfig:
     # Guiding text prompt
-    prompt: str
+    prompt: str = None
     # Whether to use Stable Diffusion v2.1
     sd_2_1: bool = False
     # Whether to use Stable Diffusion XL
@@ -79,9 +79,9 @@ class RunConfig:
     def make_output_path(self):
         if self.output_path is None:
             if self.run_standard_sd:
-                self.output_path = "./outputs_standard"
+                self.output_path = "./outputs/standard"
             else:
-                self.output_path = "./outputs_ae"
+                self.output_path = "./outputs/ae"
             # add model version to the output path
             self.output_path = self.output_path + "_" + ModelConfigs().get_model_config(self.sd_2_1, self.sd_xl)[0]
             self.output_path = Path(self.output_path)
@@ -111,8 +111,14 @@ class LiftConfig(RunConfig):
     prompts: List[str] = None
     # whether to use lift
     use_lift: bool = True
+    # whether to calculate the lift score
+    lift_calculate: bool = True
     # number of steps to call the callback
     callback_steps: int = 1
+    # whether to save the intermediate latent
+    save_intermediate_latent: bool = False
+    # whether to subtract the unconditional noise
+    subtract_unconditional: bool = False
 
     def __post_init__(self):
         self.make_output_path()

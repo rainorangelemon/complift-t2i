@@ -9,9 +9,13 @@ from pathlib import Path
 # Add argument parser for known arguments
 parser = argparse.ArgumentParser(description='Batch run lift processing')
 parser.add_argument('--config_file', type=str, default='a.e_prompts.txt',
-                   help='Path to the config file containing prompts')
+                    help='Path to the config file containing prompts')
 parser.add_argument('--num_seeds', type=int, default=64,
                     help='Number of seeds to generate')
+parser.add_argument('--output_path', type=str, default=None,
+                    help='Path to save all outputs to')
+parser.add_argument('--mode', type=str, default="run.py", choices=["run.py", "analyze_logp.py"],
+                    help='Mode to run the script')
 
 # Capture all unknown arguments
 args, unknown_args = parser.parse_known_args()
@@ -37,10 +41,14 @@ for prompt, combination in zip(prompts, combination_types):
     elif combination == "objects":
         token_to_combine = "[3,7]"
     print([prompt.split()[idx-1] for idx in eval(token_to_combine)])
-    prompts = [s.strip().replace("a ", "") for s in prompt.split("and")]
+    word_to_split = "and" if ("and" in prompt) else "with"
+    prompts = [s.strip().replace("a ", "") for s in prompt.split(word_to_split)]
     prompts = '[' + ','.join([f'"{p}"' for p in prompts]) + ']'
     seeds=f"[{','.join([str(i) for i in range(args.num_seeds)])}]"
-    command = f"python run.py --prompt \"{prompt}\" --seeds {seeds} --token_indices {token_to_combine} --prompts {prompts} {additional_args}"
+    if args.output_path is not None:
+        command = f"python {args.mode} --prompt \"{prompt}\" --seeds {seeds} --token_indices {token_to_combine} --prompts {prompts} {additional_args} --output_path {args.output_path}"
+    else:
+        command = f"python {args.mode} --prompt \"{prompt}\" --seeds {seeds} --token_indices {token_to_combine} --prompts {prompts} {additional_args}"
     print(command)
     result = os.system(command)
     if result != 0:

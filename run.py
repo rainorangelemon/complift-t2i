@@ -9,7 +9,7 @@ from pathlib import Path
 from config import RunConfig, ModelConfigs, LiftConfig
 from pipeline_attend_and_excite import AttendAndExcitePipeline
 from pipeline_attend_and_excite_xl import AttendAndExcitePipelineXL
-from diffusers import StableDiffusionPipeline, StableDiffusionXLPipeline
+from diffusers import StableDiffusionPipeline, StableDiffusionXLPipeline, DDPMScheduler
 from utils import ptp_utils, vis_utils
 from utils.ptp_utils import AttentionStore
 from lift_callback import LiftCallback
@@ -78,70 +78,107 @@ def run_on_prompt(prompt: List[str],
                         kernel_size=config.kernel_size,
                         normalize_eot=config.normalize_eot,
                         sd_2_1=config.sd_2_1,
-                        callback=callback,
-                        callback_steps=config.callback_steps,
+                        callback_on_step_end=callback,
+                        callback_on_step_end_tensor_inputs=model._callback_tensor_inputs,
                         )
     image = outputs.images[0]
     return image
 
 
+def save_results(image: Image.Image,
+                output_path: Path,
+                prompt: str,
+                seed: int,
+                data_to_save: dict):
+    """Save image and associated data for a given seed."""
+    prompt_output_path = output_path / prompt
+    prompt_output_path.mkdir(exist_ok=True, parents=True)
+
+    # Save image
+    image.save(prompt_output_path / f'{seed}.png')
+
+    # Save associated data
+    torch.save(data_to_save, prompt_output_path / f'{seed}_lift_results.pt')
+
+
+def process_and_save_lift(callback: LiftCallback,
+                           stable: AttendAndExcitePipeline,
+                           config: LiftConfig,
+                           seed: int,
+                           image: Image.Image) -> Image.Image:
+    """Process lift calculation and save results."""
+    if config.lift_calculate:
+        # Calculate lift
+        log_lift_results, latents, is_valid = callback.calculate_lift(
+            pipeline=stable,
+            prompts=config.prompts,
+            algebras=["product"]*len(config.prompts),
+            cross_attention_kwargs=None
+        )
+
+        data_to_save = {
+            "log_lift_results": log_lift_results,
+            "latents": latents,
+            "is_valid": is_valid,
+            "intermediate_latents": callback.intermediate_latents if config.save_intermediate_latent else None,
+            "intermediate_ts": callback.intermediate_ts if config.save_intermediate_latent else None,
+        }
+
+        if not is_valid.all():
+            print(f"Seed {seed} is not valid")
+    else:
+        print("Lift calculation not performed")
+        data_to_save = {
+            "latents": callback.latest_latents.clone(),
+            "intermediate_latents": callback.intermediate_latents if config.save_intermediate_latent else None,
+            "intermediate_ts": callback.intermediate_ts if config.save_intermediate_latent else None,
+        }
+
+    save_results(image, config.output_path, config.prompt, seed, data_to_save)
+    callback.clear()
+    return image
+
+
 @pyrallis.wrap()
 def main(config: LiftConfig):
-    if config.use_lift:
-        callback = LiftCallback(config)
-    else:
-        callback = None
+
+    callback = LiftCallback(config)
 
     stable = load_model(config)
     token_indices = get_indices_to_alter(stable, config.prompt) if config.token_indices is None else config.token_indices
+
+    base_tensor_inputs = [
+        "latent_model_input",
+    ]
+    stable._callback_tensor_inputs += base_tensor_inputs
 
     images = []
     seeds_to_process = config.seeds.copy()
     while seeds_to_process:
         seed = seeds_to_process.pop(0)
         print(f"Seed: {seed}")
-        # Skip if image already exists
-        if (config.output_path / config.prompt / f'{seed}.png').exists():
-            print(f"Image for seed {seed} already exists, skipping...")
-            continue
+
+        # # Skip if image already exists
+        # if (config.output_path / config.prompt / f'{seed}.png').exists():
+        #     print(f"Image for seed {seed} already exists, skipping...")
+        #     continue
 
         g = torch.Generator('cuda').manual_seed(seed)
         controller = AttentionStore()
         image = run_on_prompt(prompt=config.prompt,
-                              model=stable,
-                              controller=controller,
-                              token_indices=token_indices,
-                              seed=g,
-                              config=config,
-                              callback=callback)
+                            model=stable,
+                            controller=controller,
+                            token_indices=token_indices,
+                            seed=g,
+                            config=config,
+                            callback=callback)
 
         if config.use_lift:
-            log_lift_results, latents, is_valid = callback.calculate_lift(pipeline=stable,
-                                    prompts=config.prompts,
-                                    algebras=["product"]*len(config.prompts),
-                                    cross_attention_kwargs=None)
-
-            output_path_to_save = config.output_path
-            prompt_output_path = output_path_to_save / config.prompt
-            prompt_output_path.mkdir(exist_ok=True, parents=True)
-            image.save(prompt_output_path / f'{seed}.png')
-            images.append(image)
-
-            # save results
-            torch.save({
-                "log_lift_results": log_lift_results,
-                "latents": latents,
-                "is_valid": is_valid,
-            }, prompt_output_path / f'{seed}_lift_results.pt')
-
-            if not is_valid.all():
-                print(f"Seed {seed} is not valid")
-
+            image = process_and_save_lift(callback, stable, config, seed, image)
         else:
-            prompt_output_path = config.output_path / config.prompt
-            prompt_output_path.mkdir(exist_ok=True, parents=True)
-            image.save(prompt_output_path / f'{seed}.png')
-            images.append(image)
+            save_results(image, config.output_path, config.prompt, seed, {})
+
+        images.append(image)
 
     if len(images) > 0:
         # save a grid of results across all seeds
