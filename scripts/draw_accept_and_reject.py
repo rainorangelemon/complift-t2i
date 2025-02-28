@@ -128,11 +128,3 @@ plt.savefig("accepted_vs_rejected.pdf", backend='pgf', bbox_inches='tight')
 
 plt.clf()
 plt.close("all")
-
-plt.figure()
-plt.ylabel(r'\textcolor{red}{Today} '+
-           r'\textcolor{green}{is} '+
-           r'\textcolor{blue}{cloudy.}')
-plt.savefig("test.pdf", backend='pgf')
-
-

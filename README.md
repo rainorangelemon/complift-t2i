@@ -1,10 +1,4 @@
-# Attend-and-Excite: Attention-Based Semantic Guidance for Text-to-Image Diffusion Models (SIGGRAPH 2023)
-
-> Hila Chefer*, Yuval Alaluf*, Yael Vinker, Lior Wolf, Daniel Cohen-Or
-> Tel Aviv University
-> \* Denotes equal contribution
->
-> Recent text-to-image generative models have demonstrated an unparalleled ability to generate diverse and creative imagery guided by a target text prompt. While revolutionary, current state-of-the-art diffusion models may still fail in generating images that fully convey the semantics in the given text prompt. We analyze the publicly available Stable Diffusion model and assess the existence of catastrophic neglect, where the model fails to generate one or more of the subjects from the input prompt. Moreover, we find that in some cases the model also fails to correctly bind attributes (e.g., colors) to their corresponding subjects. To help mitigate these failure cases, we introduce the concept of Generative Semantic Nursing (GSN), where we seek to intervene in the generative process on the fly during inference time to improve the faithfulness of the generated images. Using an attention-based formulation of GSN, dubbed Attend-and-Excite, we guide the model to refine the cross-attention units to attend to all subject tokens in the text prompt and strengthen — or excite — their activations, encouraging the model to generate all subjects described in the text prompt. We compare our approach to alternative approaches and demonstrate that it conveys the desired concepts more faithfully across a range of text prompts.
+# CompLift for Text-to-Image Generation
 
 <a href="https://arxiv.org/abs/2301.13826"><img src="https://img.shields.io/badge/arXiv-2301.13826-b31b1b.svg" height=22.5></a>
 <a href="https://attendandexcite.github.io/Attend-and-Excite/"><img src="https://img.shields.io/static/v1?label=Project&message=Website&color=red" height=20.5></a>
@@ -13,18 +7,15 @@
 [![Replicate](https://replicate.com/daanelson/attend-and-excite/badge)](https://replicate.com/daanelson/attend-and-excite)
 
 <p align="center">
-<img src="docs/teaser.jpg" width="800px"/>
+<img src="figures/accepted_vs_rejected.png" width="800px"/>
 <br>
-Given a pre-trained text-to-image diffusion model (e.g., Stable Diffusion) our method, Attend-and-Excite, guides the generative model to modify the cross-attention values during the image synthesis process to generate images that more faithfully depict the input text prompt. Stable Diffusion alone (top row) struggles to generate multiple objects (e.g., a horse and a dog). However, by incorporating Attend-and-Excite (bottom row) to strengthen the subject tokens (marked in blue), we achieve images that are more semantically faithful with respect to the input text prompts.
+Our CompLift approach offers a straightforward solution to improve diffusion models without any extra training. When using regular diffusion models (shown above), combining multiple concepts in one generation often results in missing or incorrectly rendered elements. CompLift (displayed below) solves this problem by introducing a smart rejection way that measures how well each generated sample matches its intended description. By comparing how the model reconstructs images with and without the condition, CompLift can identify and accept only the aligned results.
 </p>
-
-## Description
-Official implementation of our Attend-and-Excite paper.
 
 ## Setup
 
 ### Environment
-Our code builds on the requirement of the official [Stable Diffusion repository](https://github.com/CompVis/stable-diffusion). To set up their environment, please run:
+Our code builds on the requirement of the official [Attend-and-Excite repository](https://github.com/yuval-alaluf/Attend-and-Excite). To set up their environment, please run:
 
 ```
 conda env create -f environment/environment.yaml
@@ -113,17 +104,12 @@ The metrics will be saved to a `json` file under the path specified by `--metric
 The prompts used in our quantitative evaluations can be found [here](https://github.com/AttendAndExcite/Attend-and-Excite/files/11336216/a.e_prompts.txt).
 
 ## Acknowledgements
-This code is builds on the code from the [diffusers](https://github.com/huggingface/diffusers) library as well as the [Prompt-to-Prompt](https://github.com/google/prompt-to-prompt/) codebase.
+- [Attend-and-Excite](https://github.com/AttendAndExcite/Attend-and-Excite)
+- [Diffusion Classifier](https://github.com/diffusion-classifier/diffusion-classifier)
+- [diffusers](https://github.com/huggingface/diffusers)
+- [Prompt-to-Prompt](https://github.com/google/prompt-to-prompt/)
 
 ## Citation
 If you use this code for your research, please cite the following work:
 ```
-@misc{chefer2023attendandexcite,
-      title={Attend-and-Excite: Attention-Based Semantic Guidance for Text-to-Image Diffusion Models},
-      author={Hila Chefer and Yuval Alaluf and Yael Vinker and Lior Wolf and Daniel Cohen-Or},
-      year={2023},
-      eprint={2301.13826},
-      archivePrefix={arXiv},
-      primaryClass={cs.CV}
-}
 ```
