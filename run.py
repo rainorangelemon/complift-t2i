@@ -9,7 +9,7 @@ from pathlib import Path
 from config import RunConfig, ModelConfigs, LiftConfig
 from pipeline_attend_and_excite import AttendAndExcitePipeline
 from pipeline_attend_and_excite_xl import AttendAndExcitePipelineXL
-from diffusers import StableDiffusionPipeline, StableDiffusionXLPipeline, DDPMScheduler
+from diffusers import StableDiffusionPipeline, StableDiffusionXLPipeline
 from utils import ptp_utils, vis_utils
 from utils.ptp_utils import AttentionStore
 from lift_callback import LiftCallback
@@ -101,38 +101,15 @@ def save_results(image: Image.Image,
     torch.save(data_to_save, prompt_output_path / f'{seed}_lift_results.pt')
 
 
-def process_and_save_lift(callback: LiftCallback,
-                           stable: AttendAndExcitePipeline,
+def process_and_save_predictions(callback: LiftCallback,
                            config: LiftConfig,
                            seed: int,
                            image: Image.Image) -> Image.Image:
-    """Process lift calculation and save results."""
-    if config.lift_calculate:
-        # Calculate lift
-        log_lift_results, latents, is_valid = callback.calculate_lift(
-            pipeline=stable,
-            prompts=config.prompts,
-            algebras=["product"]*len(config.prompts),
-            cross_attention_kwargs=None
-        )
-
-        data_to_save = {
-            "log_lift_results": log_lift_results,
-            "latents": latents,
-            "is_valid": is_valid,
-            "intermediate_latents": callback.intermediate_latents if config.save_intermediate_latent else None,
-            "intermediate_ts": callback.intermediate_ts if config.save_intermediate_latent else None,
-        }
-
-        if not is_valid.all():
-            print(f"Seed {seed} is not valid")
-    else:
-        print("Lift calculation not performed")
-        data_to_save = {
-            "latents": callback.latest_latents.clone(),
-            "intermediate_latents": callback.intermediate_latents if config.save_intermediate_latent else None,
-            "intermediate_ts": callback.intermediate_ts if config.save_intermediate_latent else None,
-        }
+    data_to_save = {
+        "latents": callback.latest_latents.clone(),
+        "intermediate_latents": callback.intermediate_latents if config.save_intermediate_latent else None,
+        "intermediate_ts": callback.intermediate_ts if config.save_intermediate_latent else None,
+    }
 
     save_results(image, config.output_path, config.prompt, seed, data_to_save)
     callback.clear()
@@ -173,11 +150,7 @@ def main(config: LiftConfig):
                             config=config,
                             callback=callback)
 
-        if config.use_lift:
-            image = process_and_save_lift(callback, stable, config, seed, image)
-        else:
-            save_results(image, config.output_path, config.prompt, seed, {})
-
+        image = process_and_save_predictions(callback, config, seed, image)
         images.append(image)
 
     if len(images) > 0:

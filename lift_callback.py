@@ -52,61 +52,6 @@ class LiftCallback:
         else:
             return noise[:self.config.n_samples]
 
-    @torch.inference_mode()
-    def calculate_lift(self,
-                       pipeline: Union[StableDiffusionPipeline, StableDiffusionXLPipeline],
-                       prompts: List[str],
-                       algebras: List[str],
-                       cross_attention_kwargs: Optional[Dict[str, Any]] = None,
-    ):
-        # Check if latents are available
-        if self.latest_latents is None:
-            raise ValueError("No latents available. Make sure the callback is called before calculate_lift.")
-
-        latents = self.latest_latents.clone()
-        self.latest_latents = None
-
-        device = latents.device
-        scheduler_config = pipeline.scheduler.config
-        scheduler = DDPMScheduler(beta_schedule=scheduler_config["beta_schedule"],
-                                 beta_start=scheduler_config["beta_start"],
-                                 beta_end=scheduler_config["beta_end"],
-                                 num_train_timesteps=scheduler_config["num_train_timesteps"])
-        scheduler.set_timesteps(num_inference_steps=1000, device="cuda")
-        ts = self.get_timesteps(scheduler).to(device)
-
-        B, *latent_shape = latents.shape
-        noise = self.get_noise(latent_shape).to(device, dtype=pipeline.unet.dtype)
-
-        # Calculate scores for both conditional and unconditional
-        uncond_scores = None
-        if self.config.subtract_unconditional:
-            uncond_scores = self.calculate_score(latents, pipeline, [""] * len(prompts), noise, ts, cross_attention_kwargs).to(device)
-        cond_scores = self.calculate_score(latents, pipeline, prompts, noise, ts, cross_attention_kwargs).to(device)
-
-        # Calculate log lift
-        log_lift_results = torch.zeros((B, len(prompts), len(ts)), device=device, dtype=pipeline.unet.dtype)
-        if self.config.subtract_unconditional:
-            log_lift_results = (uncond_scores - noise[None, None, :, ...]).pow(2) - \
-                              (cond_scores - noise[None, None, :, ...]).pow(2)
-        else:
-            log_lift_results = (cond_scores - noise[None, None, :, ...]).pow(2)
-        log_lift_results = log_lift_results.view(B, len(prompts), len(ts), -1).mean(dim=-1)
-
-        # Process algebras
-        is_valid = torch.ones((B), device=device, dtype=torch.bool)
-        for algebra_idx, algebra in enumerate(algebras):
-            if algebra == "product":
-                is_valid = is_valid & (log_lift_results[:, algebra_idx].mean(dim=1) > 0)
-            elif algebra == "summation":
-                is_valid = is_valid | (log_lift_results[:, algebra_idx].mean(dim=1) > 0)
-            elif algebra == "negation":
-                is_valid = is_valid & (log_lift_results[:, algebra_idx].mean(dim=1) <= 0)
-            else:
-                raise ValueError(f"Invalid algebra: {algebra}")
-
-        return log_lift_results, latents, is_valid
-
 
     @torch.inference_mode()
     def calculate_score(self,
@@ -225,7 +170,11 @@ class LiftCallback:
         # detach and clone to avoid memory leak
         self.latest_latents = callback_kwargs['latents'].detach().clone()
         if self.config.save_intermediate_latent:
-            self.intermediate_latents.append(callback_kwargs['latent_model_input'].detach().clone())
+            # check if use cfg
+            if pipe.guidance_scale > 1:
+                self.intermediate_latents.append(callback_kwargs['latent_model_input'][0].detach().clone())
+            else:
+                self.intermediate_latents.append(callback_kwargs['latent_model_input'].detach().clone())
             self.intermediate_ts.append(t)
         return {}
 

@@ -18,10 +18,11 @@
 #     echo "Git LFS is already installed"
 # fi
 # git lfs fetch --all
-# python batch_run.py               --run_standard_sd=True --use_lift=True --num_seeds=5 --lift_calculate=False --save_intermediate_latent=True
-# python batch_run.py --sd_2_1=True --run_standard_sd=True --use_lift=True --num_seeds=5 --lift_calculate=False --save_intermediate_latent=True
-# python batch_run.py --sd_xl=True  --run_standard_sd=True --use_lift=True --num_seeds=5 --lift_calculate=False --save_intermediate_latent=True
 
-python batch_run.py --mode="analyze_logp.py" --output_path="outputs/standard_sd_1_4_lift" --use_lift=False
-python batch_run.py --mode="analyze_logp.py" --output_path="outputs/standard_sd_2_1_lift" --use_lift=False
-python batch_run.py --mode="analyze_logp.py" --output_path="outputs/standard_sd_xl_lift"  --use_lift=False
+# python batch_run.py               --run_standard_sd=True --num_seeds=5 --save_intermediate_latent=True
+# python batch_run.py --sd_2_1=True --run_standard_sd=True --num_seeds=5 --save_intermediate_latent=True
+# python batch_run.py --sd_xl=True  --run_standard_sd=True --num_seeds=5 --save_intermediate_latent=True
+
+python batch_run.py --mode="analyze_logp.py" --output_path="outputs/standard_sd_1_4"
+python batch_run.py --mode="analyze_logp.py" --output_path="outputs/standard_sd_2_1"
+python batch_run.py --mode="analyze_logp.py" --output_path="outputs/standard_sd_xl"

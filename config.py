@@ -109,10 +109,6 @@ class LiftConfig(RunConfig):
     noise_path: Path = Path('./noise.pt')
     # prompts to calculate the lift score
     prompts: List[str] = None
-    # whether to use lift
-    use_lift: bool = True
-    # whether to calculate the lift score
-    lift_calculate: bool = True
     # number of steps to call the callback
     callback_steps: int = 1
     # whether to save the intermediate latent
@@ -122,6 +118,4 @@ class LiftConfig(RunConfig):
 
     def __post_init__(self):
         self.make_output_path()
-        if self.use_lift:
-            self.output_path = Path(str(self.output_path) + "_lift")
         super().__post_init__()
