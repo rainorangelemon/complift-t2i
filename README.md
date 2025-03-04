@@ -22,6 +22,16 @@ On top of these requirements, we add several requirements which can be found in 
 Our code relies also on Hugging Face's [diffusers](https://github.com/huggingface/diffusers) library for downloading the Stable Diffusion v1.4 model.
 
 
+## Quickstart Notebook
+
+We provide a Jupyter notebook [notebooks/t2i.ipynb](notebooks/t2i.ipynb) to ramp up and get familiar with the basic setting. In this script, you can generate four images in the following picture, and plot the activated pixels using lift score for each component.
+
+<p align="center">
+<img src="figures/component_analysis.png" width="600px"/>
+<br>
+Example of activated pixels using lift score for each component.
+</p>
+
 ## Usage
 
 <p align="center">
@@ -69,15 +79,6 @@ torch.logical_and([
 ])
 ```
 where `epsilon` is typically a small number such as `1e-5`, and `tau` is the threshold for pixel number such as `250`. For simplicity we did not mention `epsilon` in the paper, but we find it useful for numerical stability in practice.
-
-## Quickstart Notebook
-We provide a Jupyter notebook [notebooks/t2i.ipynb](notebooks/t2i.ipynb) to ramp up and get familiar with the basic setting. In this script, you can generate four images in the following picture, and plot the activated pixels using lift score for each component.
-
-<p align="center">
-<img src="figures/component_analysis.png" width="600px"/>
-<br>
-Example of activated pixels using lift score for each component.
-</p>
 
 ## Metrics
 We provide the script [scripts/generate_metrics.py](scripts/generate_metrics.py) to generate metrics csv files at the output folder. In its `main` part, you can see the examples as:
