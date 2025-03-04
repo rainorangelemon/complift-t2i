@@ -53,6 +53,7 @@ def load_and_prepare_data(prompt: str):
 def load_and_prepare_data_from_folder(folder_path: Path):
     pt_files = glob.glob(f"{str(folder_path)}/*_lift_results.pt")
     pt_files.sort(key=lambda x: int(x.split("/")[-1].split("_")[0]))
+    seeds = [int(pt_file.split("/")[-1].split("_")[0]) for pt_file in pt_files]
     all_final_latents = []
     for i, pt_file in enumerate(pt_files):
         all_final_latents.append(torch.load(pt_file, weights_only=True)["latents"])
@@ -64,7 +65,7 @@ def load_and_prepare_data_from_folder(folder_path: Path):
         all_intermediate_ts.append(torch.stack(torch.load(pt_file, weights_only=True)["intermediate_ts"]))
     all_intermediate_latents = torch.stack(all_intermediate_latents, dim=0)
     all_intermediate_ts = torch.stack(all_intermediate_ts, dim=0)
-    return all_final_latents, all_intermediate_latents, all_intermediate_ts
+    return all_final_latents, all_intermediate_latents, all_intermediate_ts, seeds
 
 def setup_pipeline(config: LiftConfig):
     model_type, model_config = ModelConfigs().get_model_config(config.sd_2_1, config.sd_xl)
@@ -80,7 +81,7 @@ def setup_pipeline(config: LiftConfig):
 
 @pyrallis.wrap()
 def main(config_input: LiftConfig):
-    all_final_latents, all_intermediate_latents, all_intermediate_ts = load_and_prepare_data_from_folder(config_input.output_path / config_input.prompt)
+    all_final_latents, all_intermediate_latents, all_intermediate_ts, seeds = load_and_prepare_data_from_folder(config_input.output_path / config_input.prompt)
 
     if ("xl" in config_input.output_path.name) or config_input.sd_xl:
         config_input.sd_xl = True
@@ -101,31 +102,36 @@ def main(config_input: LiftConfig):
         subtract_unconditional=False,
         batch_size=16,
         same_noise=config_input.same_noise,
+        n_samples=config_input.n_samples,
     )
     callback = LiftCallback(config)
 
-    object_1, object_2 = get_two_objects(config_input.prompt)
+    if config_input.components is None:
+        object_1, object_2 = get_two_objects(config_input.prompt)
+        prompts = [config_input.prompt, object_1, object_2, ""]
+    else:
+        prompts = [config_input.prompt, *config_input.components, ""]
 
     # Calculate scores
     for img_idx in tqdm(range(len(all_final_latents))):
-        score_result_path = f"{str(config_input.output_path)}/{config_input.prompt}/{img_idx}_score_results.pt"
-        if not os.path.exists(score_result_path):
-            score_result = callback.calculate_score(
-                all_final_latents[[img_idx]].to("cuda:0"),
-                pipeline,
-                prompts=[config_input.prompt, object_1, object_2, ""]
-            )
-            torch.save(score_result, score_result_path)
+        score_result_path = f"{str(config_input.output_path)}/{config_input.prompt}/{seeds[img_idx]}_score_results.pt"
+        # if not os.path.exists(score_result_path):
+        score_result = callback.calculate_score(
+            all_final_latents[[img_idx]].to("cuda:0"),
+            pipeline,
+            prompts=prompts
+        )
+        torch.save(score_result, score_result_path)
 
-        cached_score_result_path = f"{str(config_input.output_path)}/{config_input.prompt}/{img_idx}_cached_score_results.pt"
-        if not os.path.exists(cached_score_result_path):
-            cached_score_result = callback.calculate_score_with_latent_model_inputs(
-                pipeline,
-                prompts=[config_input.prompt, object_1, object_2, ""],
-                latent_model_inputs=all_intermediate_latents[[img_idx]].to("cuda:0"),
-                timesteps=all_intermediate_ts[img_idx],
-            )
-            torch.save(cached_score_result, cached_score_result_path)
+        cached_score_result_path = f"{str(config_input.output_path)}/{config_input.prompt}/{seeds[img_idx]}_cached_score_results.pt"
+        # if not os.path.exists(cached_score_result_path):
+        cached_score_result = callback.calculate_score_with_latent_model_inputs(
+            pipeline,
+            prompts=prompts,
+            latent_model_inputs=all_intermediate_latents[[img_idx]].to("cuda:0"),
+            timesteps=all_intermediate_ts[img_idx],
+        )
+        torch.save(cached_score_result, cached_score_result_path)
 
 
 if __name__ == "__main__":

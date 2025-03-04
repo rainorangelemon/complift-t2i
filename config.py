@@ -115,6 +115,8 @@ class LiftConfig(RunConfig):
     save_intermediate_latent: bool = False
     # whether to subtract the unconditional noise
     subtract_unconditional: bool = False
+    # components to calculate the lift score
+    components: List[str] = None
 
     def __post_init__(self):
         self.make_output_path()

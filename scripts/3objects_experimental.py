@@ -509,7 +509,7 @@ class VisualizationPlotter:
         plt.tight_layout()
         # Use bbox_inches='tight' and pad_inches to automatically adjust boundaries
         plt.savefig(
-            f"{self.config.output_path}/t2i_example.pdf",
+            f"t2i_example.pdf",
             backend='pgf',
             bbox_inches='tight',
             pad_inches=0.5  # Add padding around the figure
