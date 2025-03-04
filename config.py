@@ -58,7 +58,7 @@ class RunConfig:
     # Resolution of UNet to compute attention maps over
     attention_res: int = 16
     # Whether to run standard SD or attend-and-excite
-    run_standard_sd: bool = False
+    run_standard_sd: bool = True
     # Dictionary defining the iterations and desired thresholds to apply iterative latent refinement in
     thresholds: Dict[int, float] = field(default_factory=lambda: {0: 0.05, 10: 0.5, 20: 0.8})
     # Scale factor for updating the denoised latent z_t

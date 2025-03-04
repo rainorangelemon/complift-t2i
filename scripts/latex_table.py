@@ -166,21 +166,6 @@ def analyze_metrics(original_folder):
 
     return best_settings
 
-# # Example usage:
-# if __name__ == "__main__":
-#     original_folder = "outputs/standard_sd_xl_lift"
-#     best_settings = analyze_metrics(original_folder)
-
-#     # Print results
-#     for prompt_class, settings in best_settings.items():
-#         print(f"\nBest metric for {prompt_class}:")
-#         print(f"Metric value: {settings['best_metric']}")
-#         print(f"Detailed results: {settings['detailed_results']}")
-
-
-import pandas as pd
-import numpy as np
-from collections import defaultdict
 
 def format_value(value, decimal_places=3):
     """Format a numeric value with specified decimal places."""
@@ -382,9 +367,9 @@ if __name__ == "__main__":
 
     # Define folders for Lift models only
     lift_folders = {
-        "SD 1.4 + Rejection w/ {\\em Lift}": "outputs/standard_sd_1_4_lift",
-        "SD 2.1 + Rejection w/ {\\em Lift}": "outputs/standard_sd_2_1_lift",
-        "SD XL + Rejection w/ {\\em Lift}": "outputs/standard_sd_xl_lift"
+        "SD 1.4 + Rejection w/ {\\em Lift}": "outputs/standard_sd_1_4",
+        "SD 2.1 + Rejection w/ {\\em Lift}": "outputs/standard_sd_2_1",
+        "SD XL + Rejection w/ {\\em Lift}": "outputs/standard_sd_xl"
     }
 
     latex_table = generate_comparison_table(lift_folders, show_win=args.win)

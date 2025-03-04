@@ -7,6 +7,7 @@ from torchvision.transforms import GaussianBlur
 import torch
 from copy import deepcopy
 import ImageReward as RM
+import pandas as pd
 
 
 def add_image_reward_scores(folder_path):
@@ -154,11 +155,6 @@ def generate_metrics(original_folder):
 
             else:
                 assert False
-                # lift_object_1 = torch.ones_like(score_results[:, 0]).mean(dim=(1, 2))
-                # lift_object_2 = torch.ones_like(score_results[:, 0]).mean(dim=(1, 2))
-
-            # lift_object_1 = GaussianBlur(kernel_size=3)(lift_object_1.float()[None])[0]
-            # lift_object_2 = GaussianBlur(kernel_size=3)(lift_object_2.float()[None])[0]
 
             df.loc[(df['prompt'] == prompt) & (df['image_name'] == f"{seed}.png"), 'maximum_lift_object_1'] = lift_object_1.max().item()
             df.loc[(df['prompt'] == prompt) & (df['image_name'] == f"{seed}.png"), 'maximum_lift_object_2'] = lift_object_2.max().item()
