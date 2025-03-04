@@ -26,3 +26,5 @@ python batch_run.py --sd_xl=True  --run_standard_sd=True --num_seeds=5 --save_in
 python batch_run.py --mode="analyze_logp.py" --output_path="outputs/standard_sd_1_4"
 python batch_run.py --mode="analyze_logp.py" --output_path="outputs/standard_sd_2_1"
 python batch_run.py --mode="analyze_logp.py" --output_path="outputs/standard_sd_xl"
+
+python -m scripts.latex_table

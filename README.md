@@ -98,8 +98,8 @@ python -m scripts.generate_metrics
 
 Please check [Attend-and-Excite](https://github.com/AttendAndExcite/Attend-and-Excite) for the details of the python scripts under `metrics` folder.
 
-### Evaluation Prompts
-The prompts used in our quantitative evaluations can be found [here](https://github.com/AttendAndExcite/Attend-and-Excite/files/11336216/a.e_prompts.txt).
+### End-to-End Evaluation
+Check [batch_run.sh](batch_run.sh) for the whole procedure to run the end-to-end evaluation, starting from generating images to getting the final latex table.
 
 ## Acknowledgements
 - [Attend-and-Excite](https://github.com/AttendAndExcite/Attend-and-Excite)
