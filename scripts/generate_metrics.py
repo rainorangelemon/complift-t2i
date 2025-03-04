@@ -6,7 +6,38 @@ import gc
 from torchvision.transforms import GaussianBlur
 import torch
 from copy import deepcopy
-from scripts.add_image_reward import add_image_reward_scores
+import ImageReward as RM
+
+
+def add_image_reward_scores(folder_path):
+    """Add ImageReward scores to the metrics.csv file in the given folder."""
+
+    model = RM.load("ImageReward-v1.0")
+
+    # Read the metrics CSV
+    csv_path = os.path.join(folder_path, 'metrics.csv')
+    df = pd.read_csv(csv_path)
+
+    # Initialize the new column
+    df['image_reward_score'] = 0.0
+
+    # Calculate scores for each row
+    for idx, row in tqdm(df.iterrows(), total=len(df)):
+        prompt = row['prompt']
+        image_path = os.path.join(folder_path, prompt, row['image_name'])
+
+        if os.path.exists(image_path):
+            # Calculate ImageReward score
+            reward = model.score(prompt, [image_path])
+            df.at[idx, 'image_reward_score'] = reward
+        else:
+            print(f"Image not found: {image_path}")
+            assert False
+
+    # Save the updated CSV
+    df.to_csv(csv_path, index=False)
+    print(f"Updated metrics saved to {csv_path}")
+
 
 def cummean(x, dim=0):
     """
@@ -165,11 +196,9 @@ def generate_metrics(original_folder):
 
 if __name__ == "__main__":
     # Example usage
-    for folder in [#"outputs/standard_sd_1_4_lift",
-                   #"outputs/standard_sd_2_1_lift",
-                   # "outputs/standard_sd_xl_lift",
-                   "outputs/ae_sd_1_4",
-                   "outputs/ae_sd_2_1_lift",
+    for folder in ["outputs/standard_sd_1_4",
+                   "outputs/standard_sd_2_1",
+                   "outputs/standard_sd_xl",
                    ]:
         df, early_stop_df = generate_metrics(folder)
         add_image_reward_scores(folder)
