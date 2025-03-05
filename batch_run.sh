@@ -27,4 +27,5 @@ python batch_run.py --mode="analyze_logp.py" --output_path="outputs/standard_sd_
 python batch_run.py --mode="analyze_logp.py" --output_path="outputs/standard_sd_2_1"
 python batch_run.py --mode="analyze_logp.py" --output_path="outputs/standard_sd_xl"
 
+python -m scripts.generate_metrics
 python -m scripts.latex_table

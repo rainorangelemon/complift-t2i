@@ -21,8 +21,6 @@ def analyze_metrics(original_folder):
     metrics_cached = defaultdict(list)  # Add metrics for cached version
     results = {}
 
-    print(df['image_reward_score'].mean())
-
     for threshold in tqdm(thresholds):
         threshold_str = f"{threshold:.0e}"
         for prompt_class in prompt_classes.keys():
