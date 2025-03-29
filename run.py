@@ -106,7 +106,7 @@ def process_and_save_predictions(callback: LiftCallback,
                            seed: int,
                            image: Image.Image) -> Image.Image:
     data_to_save = {
-        "latents": callback.latest_latents.clone(),
+        "latents": callback.latest_latents.clone() if config.save_intermediate_latent else None,
         "intermediate_latents": callback.intermediate_latents if config.save_intermediate_latent else None,
         "intermediate_ts": callback.intermediate_ts if config.save_intermediate_latent else None,
     }

@@ -15,6 +15,7 @@ from diffusers.utils import deprecate, is_accelerate_available, logging, replace
 from diffusers.pipelines.pipeline_utils import DiffusionPipeline
 from diffusers.pipelines.stable_diffusion import StableDiffusionPipelineOutput
 from diffusers.pipelines.stable_diffusion.safety_checker import StableDiffusionSafetyChecker
+from diffusers.callbacks import MultiPipelineCallbacks, PipelineCallback
 
 from diffusers.pipelines.stable_diffusion import StableDiffusionPipeline
 
@@ -49,6 +50,7 @@ class AttendAndExcitePipeline(StableDiffusionPipeline):
             Model that extracts features from generated images to be used as inputs for the `safety_checker`.
     """
     _optional_components = ["safety_checker", "feature_extractor"]
+    _callback_tensor_inputs = ["latents", "prompt_embeds", "negative_prompt_embeds"]
 
     def _encode_prompt(
         self,
@@ -373,6 +375,8 @@ class AttendAndExcitePipeline(StableDiffusionPipeline):
             sigma: float = 0.5,
             kernel_size: int = 3,
             sd_2_1: bool = False,
+            callback_on_step_end: Optional[Union[Callable[[int, int, Dict], None], PipelineCallback, MultiPipelineCallbacks]] = None,
+            callback_on_step_end_tensor_inputs: List[str] = ["latents"],
             **kwargs,
     ):
         r"""
@@ -445,11 +449,16 @@ class AttendAndExcitePipeline(StableDiffusionPipeline):
         # 0. Default height and width to unet
         height = height or self.unet.config.sample_size * self.vae_scale_factor
         width = width or self.unet.config.sample_size * self.vae_scale_factor
+        self._guidance_scale = guidance_scale
 
         # 1. Check inputs. Raise error if not correct
         self.check_inputs(
             prompt, height, width, callback_steps, negative_prompt, prompt_embeds, negative_prompt_embeds
         )
+
+        # Setup callback tensor inputs
+        if isinstance(callback_on_step_end, (PipelineCallback, MultiPipelineCallbacks)):
+            callback_on_step_end_tensor_inputs = callback_on_step_end.tensor_inputs
 
         # 2. Define call parameters
         self.prompt = prompt
@@ -504,6 +513,7 @@ class AttendAndExcitePipeline(StableDiffusionPipeline):
 
         # 7. Denoising loop
         num_warmup_steps = len(timesteps) - num_inference_steps * self.scheduler.order
+        self._num_timesteps = len(timesteps)  # Store for callback references
         with self.progress_bar(total=num_inference_steps) as progress_bar:
             for i, t in enumerate(timesteps):
 
@@ -577,6 +587,17 @@ class AttendAndExcitePipeline(StableDiffusionPipeline):
 
                 # compute the previous noisy sample x_t -> x_t-1
                 latents = self.scheduler.step(noise_pred, t, latents, **extra_step_kwargs).prev_sample
+
+                # Handle callbacks
+                if callback_on_step_end is not None:
+                    callback_kwargs = {}
+                    for k in callback_on_step_end_tensor_inputs:
+                        callback_kwargs[k] = locals()[k]
+                    callback_outputs = callback_on_step_end(self, i, t, callback_kwargs)
+
+                    latents = callback_outputs.pop("latents", latents)
+                    prompt_embeds = callback_outputs.pop("prompt_embeds", prompt_embeds)
+                    negative_prompt_embeds = callback_outputs.pop("negative_prompt_embeds", negative_prompt_embeds)
 
                 # call the callback, if provided
                 if i == len(timesteps) - 1 or ((i + 1) > num_warmup_steps and (i + 1) % self.scheduler.order == 0):
