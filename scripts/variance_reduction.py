@@ -500,7 +500,7 @@ class VisualizationPlotter:
                     data.get('noise'),
                     img_idx
                 )
-                self.plot_heatmap(ax[obj_idx][1], heatmap, f"Eqn.7 for {' '.join([s.capitalize() for s in obj_name.split('_')])}", plot_idx)
+                self.plot_heatmap(ax[obj_idx][1], heatmap, f"Eqn.5 for {' '.join([s.capitalize() for s in obj_name.split('_')])}", plot_idx)
 
             self.config.draw_pure_lift = True
             self.config.base_type = "noise"
@@ -512,7 +512,7 @@ class VisualizationPlotter:
                     data.get('noise'),
                     img_idx
                 )
-                self.plot_heatmap(ax[obj_idx][2], heatmap, f"Eqn.4 for {' '.join([s.capitalize() for s in obj_name.split('_')])}", plot_idx)
+                self.plot_heatmap(ax[obj_idx][2], heatmap, f"Eqn.3 for {' '.join([s.capitalize() for s in obj_name.split('_')])}", plot_idx)
 
             # Plot trajectories if enabled
             if self.config.draw_trajectories:
