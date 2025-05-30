@@ -67,7 +67,7 @@ def load_and_prepare_data(prompt: str):
 
 def load_and_prepare_data_from_folder(folder_path: Path):
     pt_files = glob.glob(f"{str(folder_path)}/*_lift_results.pt")
-    pt_files.sort()
+    pt_files.sort(key=lambda x: int(x.split("/")[-1].split("_")[0]))
     all_final_latents = []
     for i, pt_file in enumerate(pt_files):
         all_final_latents.append(torch.load(pt_file, weights_only=True)["latents"])
